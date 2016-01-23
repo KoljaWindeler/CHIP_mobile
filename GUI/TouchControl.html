@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang=en>
+<head>
+<meta charset=utf-8>
+<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0," /> 
+<title></title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+
+<style type="text/css"> 
+	
+	* {
+	  -webkit-touch-callout: none; /* prevent callout to copy image, etc when tap to hold */
+	  -webkit-text-size-adjust: none; /* prevent webkit from resizing text to fit */
+	/* make transparent link selection, adjust last value opacity 0 to 1.0 */
+	  -webkit-tap-highlight-color: rgba(0,0,0,0); 
+	  -webkit-user-select: none; /* prevent copy paste, to allow, change 'none' to 'text' */
+	  -webkit-tap-highlight-color: rgba(0,0,0,0); 
+	}
+	
+	body {
+		background-color: #999999;
+		margin: 0px;
+	}
+	canvas {
+		display:block; 
+		position:absolute; 
+	}
+	.container {
+		width:auto;
+		text-align:center;
+		background-color:#ff0000;
+	}
+</style>
+
+
+</head>
+<body>
+
+
+<script>
+
+var Vector2 = function (x,y) {
+	this.x= x || 0; 
+	this.y = y || 0; 	
+};
+
+Vector2.prototype = {
+	reset: function ( x, y ) {
+
+		this.x = x;
+		this.y = y;
+
+		return this;
+	},
+	copyFrom : function (v) {
+		this.x = v.x;
+		this.y = v.y;
+	}
+};
+
+var canvas, c, container, halfWidth, halfHeight, leftTouchID = -1; 
+var leftTouchPos = new Vector2(0,0);
+var leftTouchStartPos = new Vector2(0,0);
+var leftVector = new Vector2(0,0);
+
+var mouseX, mouseY, 
+	// is this running in a touch capable environment?
+	touchable = 'createTouch' in document,
+	touches = [], // array of touch vectors
+	bullets = [],
+	spareBullets = [];	
+
+$(function(){
+	setupCanvas();
+	open_ws();
+
+	setInterval(draw, 1000/35); 
+
+	if(touchable) {
+		canvas.addEventListener( 'touchstart', onTouchStart, false );
+		canvas.addEventListener( 'touchmove', onTouchMove, false );
+		canvas.addEventListener( 'touchend', onTouchEnd, false );
+		window.onorientationchange = resetCanvas;  
+		window.onresize = resetCanvas;  
+	} else {
+	
+		canvas.addEventListener( 'mousemove', onMouseMove, false );
+	}
+});
+
+
+function open_ws() {
+	console.log("connecting to the server");
+	con = new WebSocket('ws://192.168.1.17:9879/');
+	con.onopen = function(){
+		console.log("onOpen");
+		var cmd_data = { "cmd":"ping"};
+		//console.log(JSON.stringify(cmd_data));
+		con.send(JSON.stringify(cmd_data)); 
+		console.log("sending");
+	};
+
+	// reacting on incoming messages
+	con.onmessage = function(msg) {
+		console.log(msg);
+		msg_dec=JSON.parse(msg.data);
+		$("#picture").attr({ "src":"data:image/jpeg;base64,"+msg_dec["data"] });
+
+
+		var cmd_data = { "cmd":"img"};
+		con.send(JSON.stringify(cmd_data)); 
+		//parse_msg(msg_dec);
+	};
+	con.onclose = function(){
+		console.log("onClose");
+	};
+};
+
+function draw() {
+  
+	c.clearRect(0,0,canvas.width, canvas.height); 
+	c.rect(0,0,canvas.width, canvas.height);
+	c.stroke();
+	
+	if(touchable) {
+
+		c.beginPath(); 
+		c.strokeStyle = "cyan"; 
+		c.lineWidth = 6; 
+		c.arc(halfWidth, halfHeight, 40,0,Math.PI*2,true); 
+		c.stroke();
+		c.beginPath(); 
+		c.strokeStyle = "cyan"; 
+		c.lineWidth = 2; 
+		c.arc(halfWidth, halfHeight, 60,0,Math.PI*2,true); 
+		c.stroke();
+		
+
+		for(var i=0; i<touches.length; i++) {
+			
+			var touch = touches[i]; 
+			
+			if(touch.identifier == leftTouchID){
+
+				c.beginPath(); 
+				c.strokeStyle = "cyan"; 
+				c.arc(leftTouchPos.x, leftTouchPos.y, 40, 0,Math.PI*2, true); 
+				c.stroke(); 
+
+			}
+		}
+	} else {
+		
+		c.fillStyle	 = "white"; 
+		c.fillText("mouse : "+mouseX+", "+mouseY, mouseX, mouseY); 
+		
+	}	
+}
+
+
+
+
+
+function onTouchStart(e) {
+	for(var i = 0; i<e.changedTouches.length; i++){
+		var touch =e.changedTouches[i]; 
+		//console.log(leftTouchID + " " 
+		if((leftTouchID<0) && (touch.clientX<halfWidth))
+		{
+			leftTouchID = touch.identifier; 
+			leftTouchStartPos.reset(halfWidth, halfHeight); 	
+			leftTouchPos.copyFrom(leftTouchStartPos); 
+			leftVector.reset(0,0); 
+			continue; 			
+		}	
+	}
+	touches = e.touches; 
+}
+ 
+function onTouchMove(e) {
+	 // Prevent the browser from doing its default thing (scroll, zoom)
+	e.preventDefault();
+	
+	for(var i = 0; i<e.changedTouches.length; i++){
+		var touch =e.changedTouches[i]; 
+		if(leftTouchID == touch.identifier)
+		{
+			leftTouchPos.reset(touch.clientX, touch.clientY); 
+			//leftVector.copyFrom(leftTouchPos); 
+			//leftVector.minusEq(leftTouchStartPos); 	
+			var new_v_x=touch.clientX-leftTouchStartPos.x;			
+			var new_v_y=leftTouchStartPos.y-touch.clientY;
+
+/*			if((container.position().left+canvas.width)>touch.clientX){
+				if(Math.abs($("#rel_x").val()-new_v_x)>5){
+					$("#rel_x").val(new_v_x);
+				}
+			}
+			if((container.position().top+canvas.height)>touch.clientY){
+				if(Math.abs($("#rel_y").val()-new_v_y)>5){
+					$("#rel_y").val(new_v_y);
+				}
+			}
+*/
+			// max way from center to high ... (ideal thumb=1/2 canvas .. but unlikly)
+			var scaler=1/4;
+			var off_area_norm=0.2; // when you are in 0.1 of  the norm you are at 0... heh?
+			var pwm_scale=512;
+
+			var x_norm=new_v_x/(canvas.width*scaler);
+			var y_norm=new_v_y/(canvas.height*scaler);
+			if(x_norm>1) x_norm=1;
+			if(x_norm<-1) x_norm=-1;
+			if(y_norm>1) y_norm=1;
+			if(y_norm<-1) y_norm=-1;
+
+			var mag=Math.min(Math.sqrt(x_norm*x_norm + y_norm*y_norm),1);
+			if(y_norm<off_area_norm && y_norm>-1*off_area_norm){
+				if(x_norm>0){ // rotate right, left forwared, right back
+					dir_left = (1);
+					dir_right = (0);
+				} else {				
+					dir_left = (0);
+					dir_right = (1);
+				}
+				pwm_left = (mag);	// left full speed			
+				pwm_right = (mag);		
+				
+			} else if(y_norm>off_area_norm){		// we want go forward
+				dir_left = (1);
+				dir_right = (1);	
+				if(x_norm<off_area_norm && x_norm>-1*off_area_norm){		// straight
+					pwm_left = (mag);				
+					pwm_right = (mag);
+				} else if(x_norm>off_area_norm){			// turn right
+					pwm_left = (mag);	// left full speed			
+					pwm_right = (mag* (Math.atan(y_norm/x_norm)/(3.14/2)) );
+				} else {				// turn left
+					pwm_left = (mag* (Math.atan(y_norm/-x_norm)/(3.14/2)) );
+					pwm_right = (mag);	// left full speed			
+				}
+			} else {					// backwards
+				dir_left = (0);
+				dir_right = (0);
+				if(x_norm<off_area_norm && x_norm>-1*off_area_norm){		// straight
+					pwm_left = (mag);				
+					pwm_right = (mag);
+				} else if(x_norm>=0){			// back right 		
+					pwm_left = (mag);	// left full speed			
+					pwm_right = (mag* (Math.atan(-y_norm/x_norm)/(3.14/2)) );
+				} else {				// back right
+					pwm_left = (mag* (Math.atan(-y_norm/-x_norm)/(3.14/2)) );
+					pwm_right = (mag);	// left full speed			
+				}
+			}
+
+			$("#dir_left").val(dir_left);
+			$("#dir_right").val(dir_right);
+			$("#pwm_left").val(Math.round(pwm_left*512));
+			$("#pwm_right").val(Math.round(pwm_right*512));
+			
+
+			break; 		
+		}		
+	}
+	
+	touches = e.touches; 
+	
+} 
+ 
+function onTouchEnd(e) { 
+	$("#dir_left").val(0);
+	$("#dir_right").val(0);
+	$("#pwm_left").val(0);
+	$("#pwm_right").val(0);
+   	touches = e.touches; 
+
+	for(var i = 0; i<e.changedTouches.length; i++){
+		var touch =e.changedTouches[i]; 
+		if(leftTouchID == touch.identifier)
+		{
+			leftTouchID = -1; 
+			leftVector.reset(0,0); 
+			break; 		
+		}		
+	}
+   
+}
+
+function onMouseMove(event) {
+	
+	mouseX = event.offsetX;
+	mouseY = event.offsetY;
+}
+
+
+function setupCanvas() {	
+	canvas = document.getElementById('cv');
+	c = canvas.getContext('2d');
+
+
+	resetCanvas(); 
+	
+	c.strokeStyle = "#ffffff";
+	c.lineWidth =2;	
+}
+
+function resetCanvas (e) {  
+	$('html, body').css({
+		'overflow': 'hidden',
+    		'height': '100%'
+	});
+
+	if(window.innerHeight>window.innerWidth){ // portrait
+		var ignore = 1;
+	} else { 
+		// resize the canvas - but remember - this clears the canvas too. 
+		canvas.width = window.innerWidth/2;
+		canvas.height = window.innerWidth/2;
+
+		halfWidth = canvas.width/2; 
+		halfHeight = canvas.height/2;
+
+		var lv = $("#picture");
+		lv.css({
+			top: 0, 
+			left: window.innerWidth*0.5,
+			width: window.innerWidth*0.5,
+			height: window.innerWidth*0.28125, 
+			position:'absolute'
+			});
+
+		$("#pwm_left").css({
+			top: window.innerWidth*0.28125+10, 
+			left: window.innerWidth*0.5+10,
+			position:'absolute'
+			});
+
+		$("#pwm_right").css({
+			top: window.innerWidth*0.28125+50, 
+			left: window.innerWidth*0.5+10,
+			position:'absolute'
+			});
+	}
+
+	$("#rel_x").hide();	
+	$("#rel_y").hide();
+	//$("#pwm_left").hide();
+	//$("#pwm_right").hide();
+	$("#dir_left").hide();
+	$("#dir_right").hide();
+
+	//make sure we scroll to the top left. 
+	window.scrollTo(0,0); 
+}
+
+
+</script>
+<div class="container">
+<canvas id="cv" width="150" height="150"></canvas>
+</div>
+
+<input id="rel_x" type="text" value="0"></input>
+<input id="rel_y" type="text" value="0"></input>
+<input id="pwm_left" type="text" value="0"></input>
+<input id="pwm_right" type="text" value="0"></input>
+<input id="dir_left" type="text" value="0"></input>
+<input id="dir_right" type="text" value="0"></input>
+<img id="picture" src="" alt="no connection to the target established">
+</body>
+</html>

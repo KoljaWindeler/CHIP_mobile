@@ -1,0 +1,181 @@
+###################### import libs #######################
+import server_ws
+from u_gpio import u_gpio
+import socket
+import time
+import json, base64, datetime, string, random
+import hashlib, select,  os, sys, subprocess, pwd
+import light, p
+###################### import libs #######################
+
+###################### sleep to avoid cpu usage #######################
+class CPUsaver:
+	def __init__(self):
+		self.state = 1  	# 1=I am busy
+		self.wait = 0.01	# 10 ms wait
+	def save_power(self):
+		if(self.state != 1):
+			time.sleep(self.wait)
+		self.state = 0
+	def set(self):
+		self.state = 1
+###################### sleep to avoid cpu usage #######################
+
+###################### debugging #######################
+class Debugging:
+	def __init__(self):
+		self.active_since_ts = 0
+		self.frames_uploaded_since_active = 0
+		self.last_pic_taken_ts = 0
+		self.estimated_fps = 0
+###################### debugging #######################
+
+
+#******************************************************#
+# websocket server will call this function if new websocket messages arrived
+# we will store them in the queue
+def recv_ws_msg_q_handle(data,ws):
+	recv_ws_msg_q.append((data,ws));
+
+def recv_ws_con_q_handle(data,ws):
+	recv_ws_con_q.append((data,ws));
+
+def recv_ws_msg_dq_handle():
+	ret=0
+	if(len(recv_ws_msg_q)>0):
+		ret=1
+		recv_msg=recv_ws_msg_q[0]
+		recv_ws_msg_q.remove(recv_msg)
+		data = recv_msg[0]
+		ws = recv_msg[1]
+		try:
+			try:
+				enc=json.loads(data)
+			except:
+				enc=""
+				p.rint("-d--> json decoding failed","d")
+
+			if(type(enc) is dict):
+				if(enc.get("cmd") == "ping"):
+					msg={}
+					msg["cmd"]="pong"
+					msg_q_ws.append((msg,ws))
+				elif(enc.get("cmd") == "img"):
+					p.rint("upload pic","d")
+					upload_picture()
+				else:
+					p.rint("<-- unsopported command received:"+enc.get("cmd"),"l")
+		except:
+			p.err("sys:")
+			p.err(str(sys.exc_info()[0]))
+			p.err(str(sys.exc_info()[1]))
+			p.err(str(repr(traceback.format_tb(sys.exc_info()[2]))))
+	return ret
+
+
+def snd_ws_msg_dq_handle():
+	ret=0
+	if(len(msg_q_ws)>0):
+		ret=1
+		#rint(str(time.time())+' fire in the hole')
+		data=msg_q_ws[0]
+		msg=data[0]
+		cli=data[1]
+		#try to submit the data to the websocket client, if that fails, remove that client.. and maybe tell him
+		msg_q_ws.remove(data)
+
+		if(server_ws.send_data(cli,json.dumps(msg).encode("UTF-8"))!=0):
+			recv_ws_con_handle("disconnect",cli)
+
+	return ret
+
+#******************************************************#
+
+#******************************************************#
+def upload_picture():
+#	if(STEP_DEBUG):
+	if(len(msg_q_ws) > 0):
+		p.rint("skip picture, q full","d")
+		return 1
+
+	p.set_last_action("loading img")
+	#if full frame read other file
+	try:
+		img = open("/dev/shm/mjpeg/cam_full.jpg", 'rb')
+	except:
+		img=open("ic_camera_black_48dp.png", 'rb')
+
+	i = 0
+	while True:
+		# should realy read it in once, 10MB buffer
+		strng = img.read(10000000)
+		if not strng:
+			#rint("could not read")
+			break
+
+		msg = {}
+		msg["cmd"] = "wf"
+		msg["fn"] = str(int(time.time()*100) % 10000)+'.jpg'
+		msg["data"] = base64.b64encode(strng).decode('utf-8')
+		msg["sof"] = 0
+		if(i == 0):
+			msg["sof"] = 1
+		msg["eof"] = 0
+		msg["msg_id"] = i
+		msg["ack"] = 1 #-1
+		#msg["ts"]=td
+		if(len(strng) != (10000000)):
+			msg["eof"] = 1
+		#rint('sending('+str(i)+') of '+path+'...')
+
+		msg["td"] = ((time.time(), "send"), (time.time(), "send"))
+		for cli in server_ws.clients:
+			msg_q_ws.append((msg,cli))
+		#if(STEP_DEBUG):
+		#	rint("[A "+time.strftime("%H:%M:%S")+"] Step 6  upload appended message")
+		i = i+1
+
+	p.set_last_action("loading img done")
+
+	#rint(str(time.time())+' all messages for '+path+' are in buffer.. i guess')
+	img.close()
+	return 0
+	# end of while
+
+#start pin config
+p.rint("STARTUP, settings pins","l")
+gpio = u_gpio()
+gpio.setup()
+
+recv_ws_msg_q=[]	# incoming
+recv_ws_con_q=[]	# incoming
+msg_q_ws=[] 		# outgoing
+server_ws.subscribe_callback(recv_ws_msg_q_handle,"msg")
+server_ws.subscribe_callback(recv_ws_con_q_handle,"con")
+server_ws.start()
+
+
+p.rint("STARTUP, creating debug","l")
+d = Debugging()				# debug handle
+
+p.rint("STARTUP, creating CPUsaver","l")
+b = CPUsaver()
+
+#only start listening to keyboard input if we are not in register mode
+p.start(1)
+
+p.rint("===== STARTUP FINISHED, running main loop =====","l")
+# Main programm
+#******************************************************#
+
+d.frames_uploaded_since_active = 0		# picture upload counter
+d.active_since_ts = 0	# picture first upload timer
+
+
+while(1):
+	if(recv_ws_msg_dq_handle()):
+		b.set()
+	if(snd_ws_msg_dq_handle()):
+		b.set()
+	b.save_power()			
+

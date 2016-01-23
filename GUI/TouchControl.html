@@ -257,6 +257,14 @@ function onTouchMove(e) {
 			$("#pwm_left").val(Math.round(pwm_left*512));
 			$("#pwm_right").val(Math.round(pwm_right*512));
 			
+			var cmd_data = { 
+				"cmd":"ctrl",
+				"dl": dir_left,
+				"dr": dir_right,
+				"pl": Math.round(pwm_left*512),
+				"pr": Math.round(pwm_right*512)
+					 };
+			con.send(JSON.stringify(cmd_data)); 
 
 			break; 		
 		}		
@@ -267,6 +275,16 @@ function onTouchMove(e) {
 } 
  
 function onTouchEnd(e) { 
+	var cmd_data = { 
+		"cmd":"ctrl",
+		"dl": 0,
+		"dr": 0,
+		"pl": 0,
+		"pr": 0
+			 };
+	con.send(JSON.stringify(cmd_data)); 
+
+
 	$("#dir_left").val(0);
 	$("#dir_right").val(0);
 	$("#pwm_left").val(0);

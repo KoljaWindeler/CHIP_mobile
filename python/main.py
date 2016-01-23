@@ -63,6 +63,12 @@ def recv_ws_msg_dq_handle():
 				elif(enc.get("cmd") == "img"):
 					p.rint("upload pic","d")
 					upload_picture()
+				elif(enc.get("cmd") == "ctrl"):
+					dl=enc.get("dl",0)
+					dr=enc.get("dr",0)
+					pl=enc.get("pl",0)
+					pr=enc.get("pr",0)
+					print(str(dl)+"/"+str(dr)+"/"+str(pl)+"/"+str(pr))
 				else:
 					p.rint("<-- unsopported command received:"+enc.get("cmd"),"l")
 		except:

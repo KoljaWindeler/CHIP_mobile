@@ -92,7 +92,7 @@ $(function(){
 
 function open_ws() {
 	console.log("connecting to the server");
-	con = new WebSocket('ws://s192.168.1.17:9879/');
+	con = new WebSocket('ws://192.168.1.17:9879/');
 	con.onopen = function(){
 		console.log("onOpen");
 		var cmd_data = { "cmd":"ping"};

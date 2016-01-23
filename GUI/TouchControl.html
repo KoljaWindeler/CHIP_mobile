@@ -92,7 +92,7 @@ $(function(){
 
 function open_ws() {
 	console.log("connecting to the server");
-	con = new WebSocket('ws://192.168.1.17:9879/');
+	con = new WebSocket('ws://s192.168.1.17:9879/');
 	con.onopen = function(){
 		console.log("onOpen");
 		var cmd_data = { "cmd":"ping"};
@@ -145,7 +145,11 @@ function draw() {
 
 				c.beginPath(); 
 				c.strokeStyle = "cyan"; 
-				c.arc(leftTouchPos.x, leftTouchPos.y, 40, 0,Math.PI*2, true); 
+				var offset=0;
+				if($.isNumeric(parseInt($("#cv").css('top')))){
+					offset=parseInt($("#cv").css('top'));
+				}
+				c.arc(leftTouchPos.x, leftTouchPos.y-offset, 40, 0,Math.PI*2, true); 
 				c.stroke(); 
 
 			}
@@ -169,7 +173,11 @@ function onTouchStart(e) {
 		if((leftTouchID<0) && (touch.clientX<halfWidth))
 		{
 			leftTouchID = touch.identifier; 
-			leftTouchStartPos.reset(halfWidth, halfHeight); 	
+			var offset=0;
+			if($.isNumeric(parseInt($("#cv").css('top')))){
+				offset=parseInt($("#cv").css('top'));
+			}
+			leftTouchStartPos.reset(halfWidth, halfHeight+offset); 	
 			leftTouchPos.copyFrom(leftTouchStartPos); 
 			leftVector.reset(0,0); 
 			continue; 			
@@ -192,17 +200,6 @@ function onTouchMove(e) {
 			var new_v_x=touch.clientX-leftTouchStartPos.x;			
 			var new_v_y=leftTouchStartPos.y-touch.clientY;
 
-/*			if((container.position().left+canvas.width)>touch.clientX){
-				if(Math.abs($("#rel_x").val()-new_v_x)>5){
-					$("#rel_x").val(new_v_x);
-				}
-			}
-			if((container.position().top+canvas.height)>touch.clientY){
-				if(Math.abs($("#rel_y").val()-new_v_y)>5){
-					$("#rel_y").val(new_v_y);
-				}
-			}
-*/
 			// max way from center to high ... (ideal thumb=1/2 canvas .. but unlikly)
 			var scaler=1/4;
 			var off_area_norm=0.2; // when you are in 0.1 of  the norm you are at 0... heh?
@@ -313,7 +310,40 @@ function resetCanvas (e) {
 	});
 
 	if(window.innerHeight>window.innerWidth){ // portrait
-		var ignore = 1;
+		canvas.width = window.innerWidth;
+		canvas.height = window.innerWidth;
+
+		halfWidth = canvas.width/2; 
+		halfHeight = canvas.height/2;
+
+		var cv = $("#cv");
+		cv.css({
+			top: window.innerWidth*720/1280, 
+			left: 0,
+			position:'absolute'
+			});
+
+		var lv = $("#picture");
+		lv.css({
+			top: 0, 
+			left: 0,
+			width: window.innerWidth,
+			height: window.innerWidth*720/1280, 
+			position:'absolute'
+			});
+
+		
+		$("#pwm_left").css({
+			top: window.innerWidth*0.28125+10, 
+			left: window.innerWidth*0.5+10,
+			position:'absolute'
+			});
+
+		$("#pwm_right").css({
+			top: window.innerWidth*0.28125+50, 
+			left: window.innerWidth*0.5+10,
+			position:'absolute'
+			});
 	} else { 
 		// resize the canvas - but remember - this clears the canvas too. 
 		canvas.width = window.innerWidth/2;

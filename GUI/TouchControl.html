@@ -63,6 +63,7 @@ var canvas, c, container, halfWidth, halfHeight, leftTouchID = -1;
 var leftTouchPos = new Vector2(0,0);
 var leftTouchStartPos = new Vector2(0,0);
 var leftVector = new Vector2(0,0);
+var last_update=0;
 
 var mouseX, mouseY, 
 	// is this running in a touch capable environment?
@@ -109,7 +110,9 @@ function open_ws() {
 
 
 		var cmd_data = { "cmd":"img"};
-		con.send(JSON.stringify(cmd_data)); 
+		setTimeout(function(){
+			con.send(JSON.stringify(cmd_data));
+		},100);
 		//parse_msg(msg_dec);
 	};
 	con.onclose = function(){
@@ -189,11 +192,15 @@ function onTouchStart(e) {
 function onTouchMove(e) {
 	 // Prevent the browser from doing its default thing (scroll, zoom)
 	e.preventDefault();
-	
+	var d = new Date();
+	var n = d.getTime();	
+
 	for(var i = 0; i<e.changedTouches.length; i++){
 		var touch =e.changedTouches[i]; 
-		if(leftTouchID == touch.identifier)
+
+		if(leftTouchID == touch.identifier && n>last_update+300)
 		{
+			last_update = n;
 			leftTouchPos.reset(touch.clientX, touch.clientY); 
 			//leftVector.copyFrom(leftTouchPos); 
 			//leftVector.minusEq(leftTouchStartPos); 	
@@ -203,7 +210,7 @@ function onTouchMove(e) {
 			// max way from center to high ... (ideal thumb=1/2 canvas .. but unlikly)
 			var scaler=1/4;
 			var off_area_norm=0.2; // when you are in 0.1 of  the norm you are at 0... heh?
-			var pwm_scale=512;
+			var pwm_scale=255;
 
 			var x_norm=new_v_x/(canvas.width*scaler);
 			var y_norm=new_v_y/(canvas.height*scaler);
@@ -254,15 +261,15 @@ function onTouchMove(e) {
 
 			$("#dir_left").val(dir_left);
 			$("#dir_right").val(dir_right);
-			$("#pwm_left").val(Math.round(pwm_left*512));
-			$("#pwm_right").val(Math.round(pwm_right*512));
+			$("#pwm_left").val(Math.round(pwm_left*pwm_scale));
+			$("#pwm_right").val(Math.round(pwm_right*pwm_scale));
 			
 			var cmd_data = { 
 				"cmd":"ctrl",
 				"dl": dir_left,
 				"dr": dir_right,
-				"pl": Math.round(pwm_left*512),
-				"pr": Math.round(pwm_right*512)
+				"pl": Math.round(pwm_left*pwm_scale),
+				"pr": Math.round(pwm_right*pwm_scale)
 					 };
 			con.send(JSON.stringify(cmd_data)); 
 

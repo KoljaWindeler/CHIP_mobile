@@ -110,9 +110,9 @@ function open_ws() {
 
 
 		var cmd_data = { "cmd":"img"};
-		setTimeout(function(){
-			con.send(JSON.stringify(cmd_data));
-		},100);
+		//setTimeout(function(){
+		//	con.send(JSON.stringify(cmd_data));
+		//},100);
 		//parse_msg(msg_dec);
 	};
 	con.onclose = function(){

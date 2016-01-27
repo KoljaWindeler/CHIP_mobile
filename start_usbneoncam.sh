@@ -5,4 +5,4 @@ killall illuminum_usbgpucam  > /dev/null 2>&1;
 mkdir /dev/shm/mjpeg > /dev/null 2>&1;
 export LD_LIBRARY_PATH=:/usr/local/lib:/usr/local/lib
 
-$locationOfScript/usbneoncam/illuminum_usbneoncam -W 800 -H 600 -F 7.5
+$locationOfScript/usbneoncam/illuminum_usbneoncam -W 320 -H 240 -F 20

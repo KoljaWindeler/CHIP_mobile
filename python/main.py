@@ -1,4 +1,6 @@
 ###################### import libs #######################
+import time
+import arduino_bridge
 import server_ws
 from u_gpio import u_gpio
 import socket
@@ -39,6 +41,13 @@ def recv_ws_msg_q_handle(data,ws):
 
 def recv_ws_con_q_handle(data,ws):
 	recv_ws_con_q.append((data,ws));
+	
+	arduino = arduino_bridge.connection()
+	arduino.setup_pwm_output(1)
+	arduino.setup_pwm_output(2)
+	arduino.setup_pwm_output(3)
+	arduino.setup_pwm_output(4)
+
 
 def recv_ws_msg_dq_handle():
 	ret=0
@@ -68,6 +77,12 @@ def recv_ws_msg_dq_handle():
 					dr=enc.get("dr",0)
 					pl=enc.get("pl",0)
 					pr=enc.get("pr",0)
+					arduino.digitalWrite(1,dr) # in3, dir righ
+					arduino.setPWM(3,pr) # en3, en right 
+
+					arduino.digitalWrite(2,dl) # in1 dir left
+					arduino.setPWM(4,pl) # en1, left
+
 					print(str(dl)+"/"+str(dr)+"/"+str(pl)+"/"+str(pr))
 				else:
 					p.rint("<-- unsopported command received:"+enc.get("cmd"),"l")
@@ -153,6 +168,13 @@ p.rint("STARTUP, settings pins","l")
 gpio = u_gpio()
 gpio.setup()
 
+arduino = arduino_bridge.connection()
+arduino.setup_pwm_output(1)
+arduino.setup_pwm_output(2)
+arduino.setup_pwm_output(3)
+arduino.setup_pwm_output(4)
+
+
 recv_ws_msg_q=[]	# incoming
 recv_ws_con_q=[]	# incoming
 msg_q_ws=[] 		# outgoing
@@ -177,6 +199,26 @@ p.rint("===== STARTUP FINISHED, running main loop =====","l")
 d.frames_uploaded_since_active = 0		# picture upload counter
 d.active_since_ts = 0	# picture first upload timer
 
+# set pin 11 as 20 ws2812, all with unique colors
+LC=18
+ROUNDS=10
+DELAY=0.02
+pin = 11
+
+arduino.setup_ws2812_unique_color_output(pin,LC)
+
+# create a color array, rainbow for demonstration
+colorArray = []
+MAX=(255//LC)*LC
+STEP=MAX//LC
+for i in range(0,LC//3):
+	colorArray.append(arduino_bridge.Color(MAX-STEP*i, STEP*i, 0))
+for i in range(0,LC//3):
+	colorArray.append(arduino_bridge.Color(0, MAX-STEP*i, STEP*i))
+for i in range(0,LC//3):
+	colorArray.append(arduino_bridge.Color(STEP*i, 0, MAX-STEP*i))
+
+last_move=time.time()
 
 while(1):
 	if(recv_ws_msg_dq_handle()):
@@ -185,3 +227,16 @@ while(1):
 		b.set()
 	b.save_power()			
 
+	if(time.time()>last_move+0.500):
+		last_move=time.time()
+		# set the current array
+		#arduino.ws2812set(pin,colorArray)
+		
+		# rotate all colors by one
+		temp = colorArray[0]
+		for i in range(0,len(colorArray)-1):
+			colorArray[i]=colorArray[i+1]
+		colorArray[len(colorArray)-2]=temp
+		
+		# wait a little
+		time.sleep(DELAY)

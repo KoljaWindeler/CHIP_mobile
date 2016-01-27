@@ -261,15 +261,21 @@ function onTouchMove(e) {
 
 			$("#dir_left").val(dir_left);
 			$("#dir_right").val(dir_right);
-			$("#pwm_left").val(Math.round(pwm_left*pwm_scale));
-			$("#pwm_right").val(Math.round(pwm_right*pwm_scale));
+			if(pwm_left>0){
+				pwm_left=Math.round(pwm_scale/2+pwm_left*pwm_scale/2);
+			}
+			if(pwm_right>0){
+				pwm_right=Math.round(pwm_scale/2+pwm_right*pwm_scale/2);
+			}
+			$("#pwm_left").val(Math.round(pwm_left));
+			$("#pwm_right").val(Math.round(pwm_right));
 			
 			var cmd_data = { 
 				"cmd":"ctrl",
 				"dl": dir_left,
 				"dr": dir_right,
-				"pl": Math.round(pwm_left*pwm_scale),
-				"pr": Math.round(pwm_right*pwm_scale)
+				"pl": Math.round(pwm_left),
+				"pr": Math.round(pwm_right)
 					 };
 			con.send(JSON.stringify(cmd_data)); 
 

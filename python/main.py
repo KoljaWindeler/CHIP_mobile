@@ -43,10 +43,10 @@ def recv_ws_con_q_handle(data,ws):
 	recv_ws_con_q.append((data,ws));
 	
 	arduino = arduino_bridge.connection()
-	arduino.setup_pwm_output(1)
-	arduino.setup_pwm_output(2)
-	arduino.setup_pwm_output(3)
-	arduino.setup_pwm_output(4)
+	arduino.setup_digital_output(13) #left
+	arduino.setup_digital_output(14) #right
+	arduino.setup_pwm_output(0) # right pwm
+	arduino.setup_pwm_output(9) # left pwm 
 
 
 def recv_ws_msg_dq_handle():
@@ -77,11 +77,11 @@ def recv_ws_msg_dq_handle():
 					dr=enc.get("dr",0)
 					pl=enc.get("pl",0)
 					pr=enc.get("pr",0)
-					arduino.digitalWrite(1,dr) # in3, dir righ
-					arduino.setPWM(3,pr) # en3, en right 
+					arduino.digitalWrite(14,dr) # in3, dir righ
+					arduino.setPWM(0,pr) # en3, en right 
 
-					arduino.digitalWrite(2,dl) # in1 dir left
-					arduino.setPWM(4,pl) # en1, left
+					arduino.digitalWrite(13,dl) # in1 dir left
+					arduino.setPWM(9,pl) # en1, left
 
 					print(str(dl)+"/"+str(dr)+"/"+str(pl)+"/"+str(pr))
 				else:
@@ -169,10 +169,10 @@ gpio = u_gpio()
 gpio.setup()
 
 arduino = arduino_bridge.connection()
-arduino.setup_pwm_output(1)
-arduino.setup_pwm_output(2)
-arduino.setup_pwm_output(3)
-arduino.setup_pwm_output(4)
+arduino.setup_digital_output(13) #left
+arduino.setup_digital_output(14) #right
+arduino.setup_pwm_output(0) # right pwm
+arduino.setup_pwm_output(9) # left pwm 
 
 
 recv_ws_msg_q=[]	# incoming

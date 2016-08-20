@@ -109,10 +109,10 @@ function open_ws() {
 		$("#picture").attr({ "src":"data:image/jpeg;base64,"+msg_dec["data"] });
 
 
-		var cmd_data = { "cmd":"img"};
+		/*var cmd_data = { "cmd":"img"};
 		setTimeout(function(){
 			con.send(JSON.stringify(cmd_data));
-		},10);
+		},10);*/
 		parse_msg(msg_dec);
 	};
 	con.onclose = function(){
@@ -262,14 +262,14 @@ function onTouchMove(e) {
 			$("#dir_left").val(dir_left);
 			$("#dir_right").val(dir_right);
 			if(pwm_left>0){
-				if(pwm_left<0.5){
-					pwm_left=0;
+				if(pwm_left>0.8){
+					pwm_left=1;
 				}
 				pwm_left=Math.round(pwm_left*pwm_scale);//pwm_scale/2+pwm_left*pwm_scale/2);
 			}
 			if(pwm_right>0){
-				if(pwm_right<0.8){
-					pwm_right=0;
+				if(pwm_right>0.8){
+					pwm_right=1;
 				}
 				pwm_right=Math.round(pwm_right*pwm_scale);//pwm_scale/2+pwm_right*pwm_scale/2);
 			}
